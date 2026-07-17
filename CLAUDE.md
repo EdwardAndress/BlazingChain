@@ -13,13 +13,13 @@ A DoDonPachi-inspired vertical bullet hell. The entire game is one file: `index.
 ## File layout (in order)
 
 1. CSS shell and scanlines
-2. `TUNE` object: gameplay feel knobs
+2. TUNING section: `TUNE` (feel), `DIFF` (speed multipliers, revenge speed, `DIFF.bossHp`), `ECON` (credits, lives, bombs, extends, bonuses), `JUICE` (hit-stop and pulse frames), `TARMAC_S1`/`TARMAC_S2` palettes, then the CHEAT block (URL params ?stage= ?loop= ?boss= ?pow= ?inv= ?credits= ?debug=; debug keys I/B/L/G). Any cheat sets `cheatUsed`: `saveHi` refuses to persist and a DEBUG tag shows on the HUD. All global tunables belong here; per-enemy hp and pattern timings deliberately stay with their enemies
 3. Input: keyboard (`keys` by e.code) and pointer (drag=move+autofire, second finger=laser, BOMB touch button)
 4. WebAudio synth: `blip(f0,f1,dur,type,vol,at)`, `noiseHit(dur,vol,dark,at)`, `sfxBossDown` fanfare, laser hum
 5. Pixel sprites via `sprite(rows)` string maps (equal row widths required); `sprMid` built in `makeMid()`
 6. Bullet patterns: `eb`, `ring`, `fan`, `aimAng`. `eb` applies a 1.15x speed multiplier in stage 2.
 7. Enemy spawns and `updateEnemies` (kinds: bee, rain, heli, tank, spin, orb, mid)
-8. Bosses: `spawnBoss(kind)`; kind 1 QUEEN VESPA, kind 2 KING LUCANUS (stag beetle). `BOSS_HP` per kind, per-boss hitbox `hw`/`hh`, patterns branch in `updateBoss`, draw in `drawBoss`/`drawBoss2`.
+8. Bosses: `spawnBoss(kind)`; kind 1 QUEEN VESPA, kind 2 KING LUCANUS (stag beetle). `DIFF.bossHp` per kind, per-boss hitbox `hw`/`hh`, patterns branch in `updateBoss`, draw in `drawBoss`/`drawBoss2`.
 9. Stage scripts: `buildScript(st)` for stage 1, `buildStage2()` for stage 2; `at(sec,fn)` and `wave(t0,n,gap,fn)` off `stageFrame`
 10. Player, shot/laser/bomb, `collide`, chain logic
 11. Powerup items, background (`TARMAC` with `TARMAC_S1`/`TARMAC_S2` presets), drawing, HUD, loop
@@ -36,11 +36,16 @@ A DoDonPachi-inspired vertical bullet hell. The entire game is one file: `index.
 - Continuing sets `loopLocked=true`: loop 2 is only reachable by a one credit clear.
 - Loop 2: bullets a further 1.2x faster (multiplies with the stage 2 1.15x), revenge bullets (dead enemies fire 1 or 2 aimed shots unless a bomb is active), and KING LUCANUS gains a 4th TRUE FORM phase (five arm spiral storm). Clearing it sets `trueClear` and shows TRUE ALL CLEAR.
 - Player hitbox is tiny (`TUNE.hitR`), shown as a dot while lasering.
+- Ships: `SHIPS` array in TUNING (TYPE-A default; TYPE-B faster, wider shot, weaker laser). `shipType` selects; arrows on the title switch once TYPE-B is unlocked.
+- Boss timers: every phase lasts `DIFF.bossPhaseSec`; expiry escalates to the next phase (dodging reveals all patterns), final-phase expiry makes the boss withdraw (no bonus, no kill, stage advances normally). Timer shows under the boss bar.
+- Pacifist ("dot eater") runs: `pacifist` starts true, broken by any shot, any laser engagement, any bomb, or continuing. A pacifist, no-continue loop 1 clear (boss 2 resolved while `!loopLocked`) unlocks TYPE-B, persisted under `blazingChain.typeB` with the same storage guard; cheat runs (`cheatUsed`) can never earn it. A small DOT EATER tag shows while a run is still pure.
 
 ## Visual readability rules (the design system)
 
 - Brightness hierarchy: enemy bullets brightest (pink/cyan with white cores), player and enemies mid, scenery darkest.
-- One terrain motif: tarmac tile grid. Stage 2 shifts it violet via `TARMAC_S2`.
+- Stage 1 scenery: embedded hull tileset. `ATLAS_B64` is an 18-cell 48px atlas baked from an external tileset sheet (not in the repo); cyan glows were pre-toned at bake time (pixels with b>120 and b>1.5r scaled by 0.75/0.6/0.55) so terrain cyan cannot mimic type-1 bullets. `drawBgHull` lays it out world-anchored: panel edge rails, three centre lanes whose plate family shifts every 4 rows, a strut bulkhead band every 6 rows, a 2x2 blast door every 9 rows. Regenerating the atlas requires the original sheet plus that bake recipe.
+- Stage 2 scenery: violet tarmac tile grid via `TARMAC_S2` (`drawBgTarmac`). `drawBg` dispatches on `stage` and falls back to tarmac until the atlas image decodes.
+- Every enemy bullet draws a 1px dark rim (#0d0e18) behind its colour and white core, which keeps small bullets legible on the brighter hull terrain.
 - Ground units (tank, mid) get drop shadows; flyers never do.
 - Items are yellow/green diamonds with dark cores and letters so they cannot read as bullets.
 - Juice conventions: brief hit-stop via `freezeT` (3 frames on big kills, 6 on boss phase changes, 10 on boss death), enemy bullets bloom white for their first 2 frames, ships fly in from the bottom of the screen on spawn and respawn, the chain counter pulses on increment, bosses announce their name on arrival.
